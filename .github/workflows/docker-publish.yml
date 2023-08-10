@@ -8,6 +8,10 @@ on:
         description: 'Version tag'
         required: true
         default: 'latest'
+      branch:
+        description: "Branch to build from"
+        required: false
+        default: 'master'
 
 jobs:
   push_to_registries:
@@ -20,7 +24,7 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v3
         with:
-#          ref: docker
+          ref: ${{ github.event.inputs.branch }} 
           submodules: true
 
       - name: Log in to Docker Hub
