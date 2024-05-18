@@ -1,8 +1,8 @@
-import { TypedEmitter } from '../../common/TypedEmitter';
+import { EventMap, TypedEmitter } from '../../common/TypedEmitter';
 import { ParamsBase } from '../../types/ParamsBase';
 import Util from '../Util';
 
-export class BaseClient<P extends ParamsBase, TE> extends TypedEmitter<TE> {
+export class BaseClient<P extends ParamsBase, TE extends EventMap> extends TypedEmitter<TE> {
     protected title = 'BaseClient';
     protected params: P;
 
@@ -22,6 +22,7 @@ export class BaseClient<P extends ParamsBase, TE> extends TypedEmitter<TE> {
             secure: Util.parseBooleanEnv(query.get('secure')),
             hostname: Util.parseStringEnv(query.get('hostname')),
             port: Util.parseIntEnv(query.get('port')),
+            pathname: Util.parseStringEnv(query.get('pathname')),
         };
     }
 

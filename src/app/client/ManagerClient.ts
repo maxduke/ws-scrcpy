@@ -3,8 +3,9 @@ import { ACTION } from '../../common/Action';
 import { ParamsBase } from '../../types/ParamsBase';
 import Util from '../Util';
 import { Multiplexer } from '../../packages/multiplexer/Multiplexer';
+import { EventMap } from '../../common/TypedEmitter';
 
-export abstract class ManagerClient<P extends ParamsBase, TE> extends BaseClient<P, TE> {
+export abstract class ManagerClient<P extends ParamsBase, TE extends EventMap> extends BaseClient<P, TE> {
     public static ACTION = 'unknown';
     public static CODE = 'NONE';
     public static sockets: Map<string, Multiplexer> = new Map();
@@ -87,15 +88,16 @@ export abstract class ManagerClient<P extends ParamsBase, TE> extends BaseClient
 
     protected buildDirectWebSocketUrl(): URL {
         const { hostname, port, secure, action } = this.params;
+        const pathname = this.params.pathname ?? location.pathname;
         let urlString: string;
         if (typeof hostname === 'string' && typeof port === 'number') {
             const protocol = secure ? 'wss:' : 'ws:';
-            urlString = `${protocol}//${hostname}:${port}`;
+            urlString = `${protocol}//${hostname}:${port}${pathname}`;
         } else {
             const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 
             // location.host includes hostname and port
-            urlString = `${protocol}${location.host}`;
+            urlString = `${protocol}${location.host}${pathname}`;
         }
         const directUrl = new URL(urlString);
         if (this.supportMultiplexing()) {
