@@ -12,6 +12,9 @@ on:
         description: "Branch to build from"
         required: false
         default: 'master'
+       
+env:
+  PLATFORMS: ${{ vars.PLATFORMS || 'linux/amd64,linux/arm64' }}
 
 jobs:
   push_to_registries:
@@ -27,11 +30,11 @@ jobs:
           ref: ${{ github.event.inputs.branch }} 
           submodules: true
 
-      - name: Log in to Docker Hub
+      - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       # Documentation: https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
@@ -42,12 +45,30 @@ jobs:
         id: buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build and push Docker images
-        uses: docker/build-push-action@v3
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Log into ghcr
+        uses: docker/login-action@v2
+        if: ${{ vars.USE_GHCR == '1' }}
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
         with:
           context: .
+          platforms: ${{ env.PLATFORMS }}
           push: true
-          tags: maxduke/ws-scrcpy:latest, maxduke/ws-scrcpy:${{ github.event.inputs.image_tag }}
-          # Support for different platforms, see here: 
-          # https://github.com/docker/buildx/blob/master/docs/reference/buildx_build.md#-set-the-target-platforms-for-the-build---platform
-          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ github.actor }}/ws-scrcpy:latest, ${{ github.actor }}/ws-scrcpy:${{ github.event.inputs.image_tag }}
+            ghcr.io/${{ github.actor }}/ws-scrcpy:latest, ${{ github.actor }}/ws-scrcpy:${{ github.event.inputs.image_tag }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
