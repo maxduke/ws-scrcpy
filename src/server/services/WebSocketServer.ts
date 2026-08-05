@@ -1,3 +1,4 @@
+import { Socket } from 'net';
 import { Server as WSServer } from 'ws';
 import WS from 'ws';
 import { Service } from './Service';
@@ -40,7 +41,7 @@ export class WebSocketServer implements Service {
                 socket.destroy();
                 return;
             }
-            wss.handleUpgrade(request, socket, head, (ws) => {
+            wss.handleUpgrade(request, socket as Socket, head, (ws) => {
                 wss.emit('connection', ws, request);
             });
         });
