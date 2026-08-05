@@ -8,6 +8,7 @@ import { Config } from '../Config';
 import { TypedEmitter } from '../../common/TypedEmitter';
 import * as process from 'process';
 import { EnvName } from '../EnvName';
+import { Auth } from '../Auth';
 
 const DEFAULT_STATIC_DIR = path.join(__dirname, './public');
 
@@ -76,6 +77,17 @@ export class HttpServer extends TypedEmitter<HttpServerEvents> implements Servic
 
     public async start(): Promise<void> {
         this.mainApp = express();
+        this.mainApp.get('/healthz', (_req, res) => {
+            res.status(200).type('text/plain').send('ok');
+        });
+        this.mainApp.use((req, res, next) => {
+            if (Auth.isAuthorized(req)) {
+                next();
+                return;
+            }
+            Auth.rejectHttp(res);
+        });
+
         if (HttpServer.SERVE_STATIC && HttpServer.PUBLIC_DIR) {
             this.mainApp.use(PATHNAME, express.static(HttpServer.PUBLIC_DIR));
 
