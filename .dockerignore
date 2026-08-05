@@ -1,0 +1,9 @@
+.git
+.github
+.appium-home
+dist
+node_modules
+npm-debug.log*
+.DS_Store
+config.yaml
+config.yml
