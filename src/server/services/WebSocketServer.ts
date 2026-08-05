@@ -3,6 +3,7 @@ import WS from 'ws';
 import { Service } from './Service';
 import { HttpServer, ServerAndPort } from './HttpServer';
 import { MwFactory } from '../mw/Mw';
+import { Auth } from '../Auth';
 
 export class WebSocketServer implements Service {
     private static instance?: WebSocketServer;
@@ -31,7 +32,19 @@ export class WebSocketServer implements Service {
     public attachToServer(item: ServerAndPort): WSServer {
         const { server, port } = item;
         const TAG = `WebSocket Server {tcp:${port}}`;
-        const wss = new WSServer({ server });
+        const wss = new WSServer({ noServer: true });
+
+        server.on('upgrade', (request, socket, head) => {
+            if (!Auth.isAuthorized(request)) {
+                socket.write(Auth.unauthorizedUpgradeResponse());
+                socket.destroy();
+                return;
+            }
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                wss.emit('connection', ws, request);
+            });
+        });
+
         wss.on('connection', async (ws: WS, request) => {
             if (!request.url) {
                 ws.close(4001, `[${TAG}] Invalid url`);
