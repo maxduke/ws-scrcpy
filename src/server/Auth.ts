@@ -4,7 +4,6 @@ import { IncomingMessage, ServerResponse } from 'http';
 import { EnvName } from './EnvName';
 
 const AUTH_REALM = 'ws-scrcpy';
-const HEALTH_PATH = '/healthz';
 
 export class Auth {
     private static readonly username = process.env[EnvName.AUTH_USER] || '';
@@ -12,14 +11,6 @@ export class Auth {
 
     public static get enabled(): boolean {
         return this.username.length > 0 && this.password.length > 0;
-    }
-
-    public static isHealthRequest(request: IncomingMessage): boolean {
-        if (!request.url) {
-            return false;
-        }
-        const url = new URL(request.url, 'http://localhost');
-        return url.pathname === HEALTH_PATH;
     }
 
     public static isAuthorized(request: IncomingMessage): boolean {
@@ -71,7 +62,7 @@ export class Auth {
         const passwordFile = process.env[EnvName.AUTH_PASSWORD_FILE];
         if (passwordFile) {
             try {
-                return fs.readFileSync(passwordFile, 'utf8').trimEnd();
+                return fs.readFileSync(passwordFile, 'utf8').replace(/[\r\n]+$/, '');
             } catch (error) {
                 const message = error instanceof Error ? error.message : String(error);
                 throw new Error(`Unable to read ${EnvName.AUTH_PASSWORD_FILE}: ${message}`);
