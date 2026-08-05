@@ -32,9 +32,7 @@ export function requestJson(
                 port: parsed.port,
                 path: `${parsed.pathname}${parsed.search}`,
                 method,
-                headers: payload
-                    ? { 'content-type': 'application/json', 'content-length': payload.length }
-                    : {},
+                headers: payload ? { 'content-type': 'application/json', 'content-length': payload.length } : {},
             },
             (res) => {
                 const chunks: Buffer[] = [];
@@ -141,9 +139,7 @@ export class AppiumRunner extends ProcessRunner<ProcessRunnerEvents> {
     }
 
     protected async getArgs(): Promise<string[]> {
-        this.port = process.env.APPIUM_PORT
-            ? parseInt(process.env.APPIUM_PORT, 10)
-            : await portfinder.getPortPromise();
+        this.port = process.env.APPIUM_PORT ? parseInt(process.env.APPIUM_PORT, 10) : await portfinder.getPortPromise();
         this.baseUrl = `http://${this.host}:${this.port}`;
         // Appium emits the detailed xcodebuild / WDA build output (enabled via the
         // `showXcodeLog` capability) at debug level. At 'warn' it is suppressed — so under
