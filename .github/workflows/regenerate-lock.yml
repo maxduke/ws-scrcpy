@@ -6,7 +6,7 @@ on:
       - agent/docker-auth-hardening
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   regenerate:
@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/docker-auth-hardening
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -21,13 +23,15 @@ jobs:
           node-version: 20.20.2
           cache: npm
 
-      - name: Regenerate package lock
-        run: npm install --package-lock-only --omit=optional --ignore-scripts --no-audit --no-fund
-
-      - name: Upload package lock
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: regenerated-package-lock
-          path: package-lock.json
-          if-no-files-found: error
-          retention-days: 1
+      - name: Regenerate and commit package lock
+        run: |
+          npm install --package-lock-only --omit=optional --ignore-scripts --no-audit --no-fund
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json is already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "Refresh package lock for npm 10"
+          git push
