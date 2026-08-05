@@ -1,0 +1,68 @@
+name: Validate
+
+'on':
+  pull_request:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: recursive
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --omit=optional --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build application
+        run: npm run dist
+
+      - name: Build Docker image
+        run: docker build --pull --tag ws-scrcpy:test .
+
+      - name: Test container health and authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --rm \
+            --name ws-scrcpy-test \
+            --publish 18000:8000 \
+            --env WS_SCRCPY_AUTH_USER=tester \
+            --env WS_SCRCPY_AUTH_PASSWORD=secret \
+            ws-scrcpy:test
+          trap 'docker logs ws-scrcpy-test || true; docker stop ws-scrcpy-test || true' EXIT
+
+          for _ in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:18000/healthz >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18000/)" = "401"
+          test "$(curl --silent --user tester:secret --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18000/)" = "200"
+
+          node -e "const WS=require('ws'); const ws=new WS('ws://127.0.0.1:18000/?action=invalid'); ws.on('unexpected-response',(_,r)=>process.exit(r.statusCode===401?0:1)); ws.on('open',()=>process.exit(1)); ws.on('error',()=>{}); setTimeout(()=>process.exit(1),5000);"
+          node -e "const WS=require('ws'); const ws=new WS('ws://127.0.0.1:18000/?action=invalid',{headers:{Authorization:'Basic '+Buffer.from('tester:secret').toString('base64')}}); ws.on('open',()=>process.exit(0)); ws.on('error',()=>process.exit(1)); setTimeout(()=>process.exit(1),5000);"
